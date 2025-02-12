@@ -8,6 +8,8 @@ const fs = require("fs");
 const session = require("express-session");
 
 const app = express();
+// CORS Configuration
+app.use(cors({ origin: "*", methods: "GET,POST", allowedHeaders: "Content-Type, Authorization" }));
 app.use(bodyParser.urlencoded({extended: true}));
 app.use(session({
    secret: "dfsf94835asda",
@@ -23,6 +25,7 @@ app.post("/form", async (request, response) => {
    let results = await envelopesApi.createEnvelope(
        process.env.ACCOUNT_ID, {envelopeDefinition: envelope});
    console.log("envelope results ", results);
+   
 // Create the recipient view, the Signing Ceremony
    let viewRequest = makeRecipientViewRequest(request.body.name, request.body.email);
    results = await envelopesApi.createRecipientView(process.env.ACCOUNT_ID, results.envelopeId,
@@ -54,7 +57,7 @@ function makeEnvelope(name, email, company){
       name: name,
       tabs: tabs,
       clientUserId: process.env.CLIENT_USER_ID,
-      roleName: 'Applicant'});
+      roleName: 'Candidate'});
 
    env.templateRoles = [signer1];
    env.status = "sent";
