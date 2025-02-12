@@ -11,6 +11,7 @@
   "license": "ISC",
   "dependencies": {
     "body-parser": "^1.20.1",
+    "node-fetch": "^3.3.2",
     "cors": "^2.8.5",
     "docusign-esign": "^6.0.0",
     "dotenv": "^16.0.3",
