@@ -6,6 +6,7 @@ dotenv.config();
 const docusign = require("docusign-esign");
 const fs = require("fs");
 const session = require("express-session");
+const cors = require("cors");
 
 const app = express();
 // CORS Configuration
