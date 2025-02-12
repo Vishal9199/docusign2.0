@@ -35,6 +35,46 @@ app.post("/form", async (request, response) => {
    response.redirect(results.url);
 });
 
+
+// API to download signed document (Solves CORS issue)
+app.get("/download-document", async (req, res) => {
+   if (!req.session.access_token || !req.session.envelope_id) {
+      return res.status(400).send("Session expired or missing required information.");
+   }
+
+   const accessToken = req.session.access_token;
+   const baseUrl = process.env.BASE_PATH;
+   const accountId = process.env.ACCOUNT_ID;
+   const envelopeId = req.session.envelope_id;
+   const documentId = "1"; // Change if needed
+
+   const url = `${baseUrl}/v2.1/accounts/${accountId}/envelopes/${envelopeId}/documents/${documentId}`;
+
+   try {
+      const fetch = (await import("node-fetch")).default; // Import node-fetch dynamically
+      const response = await fetch(url, {
+         method: "GET",
+         headers: {
+            "Authorization": `Bearer ${accessToken}`,
+            "Accept": "application/pdf"
+         }
+      });
+
+      if (!response.ok) {
+         throw new Error(`Error: ${response.statusText}`);
+      }
+
+      // Forward the PDF response to the client
+      const pdfBuffer = await response.buffer();
+      res.setHeader("Content-Disposition", "attachment; filename=signed_document.pdf");
+      res.setHeader("Content-Type", "application/pdf");
+      res.send(pdfBuffer);
+   } catch (error) {
+      console.error("Error downloading document:", error);
+      res.status(500).send("Failed to download document.");
+   }
+});
+
 function getEnvelopesApi(request) {
    let dsApiClient = new docusign.ApiClient();
    dsApiClient.setBasePath(process.env.BASE_PATH);
@@ -108,8 +148,64 @@ app.get("/", async (request, response) => {
    response.sendFile(path.join(__dirname, "main.html"));
 });
 
-app.get("/success", (request, resposne) => {
-   resposne.send("Success");
+// Success page with document download feature
+app.get("/success", (request, response) => {
+   if (!request.session.access_token || !request.session.envelope_id) {
+      return response.status(400).send("Session expired or missing required information.");
+   }
+
+   response.send(`
+      <!DOCTYPE html>
+      <html lang="en">
+      <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Success</title>
+          <style>
+              body { font-family: Arial, sans-serif; background-color: #f4f4f9; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+              .success-container { text-align: center; background: white; padding: 30px; border-radius: 10px; box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.2); }
+              .success-icon { font-size: 50px; color: #4CAF50; }
+              h1 { color: #333; }
+              p { color: #666; font-size: 18px; }
+              .btn { display: inline-block; margin-top: 15px; padding: 10px 20px; font-size: 16px; color: white; background-color: #007bff; border: none; border-radius: 5px; text-decoration: none; cursor: pointer; }
+              .btn:hover { background-color: #0056b3; }
+          </style>
+      </head>
+      <body>
+          <div class="success-container">
+              <div class="success-icon">✔</div>
+              <h1>Successfully Signed!</h1>
+              <p>Your document has been successfully signed using DocuSign.</p>
+              <a href="/" class="btn">Back to Home</a>
+              <button class="btn" onclick="downloadDocument()">Download Signed Document</button>
+          </div>
+
+          <script>
+              async function downloadDocument() {
+                  try {
+                      const response = await fetch("/download-document", { method: "GET" });
+
+                      if (!response.ok) {
+                          throw new Error(\`Error: \${response.statusText}\`);
+                      }
+
+                      const blob = await response.blob();
+                      const downloadUrl = window.URL.createObjectURL(blob);
+                      const a = document.createElement("a");
+                      a.href = downloadUrl;
+                      a.download = "signed_document.pdf";
+                      document.body.appendChild(a);
+                      a.click();
+                      a.remove();
+                  } catch (error) {
+                      console.error("Error downloading document:", error);
+                      alert("Failed to download document.");
+                  }
+              }
+          </script>
+      </body>
+      </html>
+   `);
 });
 
 // https://account-d.docusign.com/oauth/auth?response_type=code&scope=signature%20impersonation&client_id=(YOUR CLIENT ID)&redirect_uri=http://localhost:8000/
