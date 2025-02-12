@@ -26,8 +26,11 @@ app.post("/form", async (request, response) => {
    let results = await envelopesApi.createEnvelope(
        process.env.ACCOUNT_ID, {envelopeDefinition: envelope});
    console.log("envelope results ", results);
+
+   // Store envelope ID in session
+   request.session.envelope_id = results.envelopeId;
    
-// Create the recipient view, the Signing Ceremony
+   // Create the recipient view, the Signing Ceremony
    let viewRequest = makeRecipientViewRequest(request.body.name, request.body.email);
    results = await envelopesApi.createRecipientView(process.env.ACCOUNT_ID, results.envelopeId,
        {recipientViewRequest: viewRequest});
